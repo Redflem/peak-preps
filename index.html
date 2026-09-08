@@ -43,10 +43,18 @@
   .section-heading { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom:12px; }
   .week-heading { color:#666; font-size:14px; margin-top:-8px; }
   .closed-badge { background:#eee; color:#666; border-radius:999px; padding:7px 10px; font-size:12px; font-weight:800; white-space:nowrap; }
+  .week-nav-note { grid-column:1 / -1; font-size:11px; color:#777; margin:-5px 0 2px; }
   .week-nav { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; margin:0 0 12px; }
   .week-tab { border:1px solid #d4d6ce; background:#f7f7f4; color:#444; border-radius:10px; padding:10px 6px; font:inherit; font-size:12px; font-weight:800; cursor:pointer; line-height:1.25; }
   .week-tab.active { background:var(--olive); color:#fff; border-color:var(--olive); }
   .week-tab:disabled { cursor:default; opacity:.7; }
+  .confirm-title { font-size:28px; font-weight:900; margin-bottom:8px; }
+  .confirm-box { margin:18px auto; max-width:560px; text-align:left; background:#f7f7f4; border-radius:14px; padding:16px; }
+  .confirm-heading { font-size:18px; font-weight:900; }
+  .confirm-sub { color:#666; margin:4px 0 14px; }
+  .confirm-meal { display:flex; justify-content:space-between; gap:16px; padding:9px 0; border-top:1px solid #ddd; }
+  .confirm-total { display:flex; justify-content:space-between; gap:16px; padding-top:14px; margin-top:6px; border-top:2px solid #bbb; font-size:18px; font-weight:900; }
+  .confirm-note { color:#666; font-size:13px; }
   .sheet-loading { font-size:12px; color:#777; margin-top:6px; }
   .menu-status { background:#f3f4ee; border-radius:10px; padding:10px 12px; margin-bottom:12px; font-size:13px; color:#666; }
   .menu-status.closed { background:#f0f0f0; }
@@ -88,6 +96,7 @@
   </div>
 
   <div id="weekNav" class="week-nav" aria-label="Choose meal prep week">
+    <div class="week-nav-note">Each menu runs Monday–Sunday, with pickup on Sunday.</div>
     <button type="button" id="prevWeekBtn" class="week-tab"></button>
     <button type="button" id="thisWeekBtn" class="week-tab"></button>
     <button type="button" id="nextWeekBtn" class="week-tab"></button>
@@ -240,9 +249,14 @@ function startOfPickupWeek() {
   const d = new Date();
   const day = d.getDay(); // Sunday = 0
   const result = new Date(d);
+  // The active ordering cycle ends on the upcoming Sunday.
   if (day !== 0) result.setDate(d.getDate() + (7 - day));
   result.setHours(0,0,0,0);
   return result;
+}
+
+function getMonday(sunday) {
+  return addDays(sunday, -6);
 }
 
 const anchorSunday = startOfPickupWeek();
@@ -264,12 +278,12 @@ function formatShortDate(date) {
 }
 
 function formatDateRange(sunday) {
-  const saturday = addDays(sunday, 6);
-  const sameMonth = sunday.getMonth() === saturday.getMonth();
+  const monday = getMonday(sunday);
+  const sameMonth = monday.getMonth() === sunday.getMonth();
   if (sameMonth) {
-    return `${sunday.toLocaleDateString('en-US',{month:'long'})} ${sunday.getDate()}–${saturday.getDate()}`;
+    return `${monday.toLocaleDateString('en-US',{month:'long'})} ${monday.getDate()}–${sunday.getDate()}`;
   }
-  return `${formatShortDate(sunday)}–${formatShortDate(saturday)}`;
+  return `${formatShortDate(monday)}–${formatShortDate(sunday)}`;
 }
 
 function getWeekInfo(index) {
@@ -354,7 +368,7 @@ function renderMeals() {
     </div>`;
 
   document.getElementById('weekHeading').textContent =
-    `Pickup Sunday, ${info.pickup} • ${info.range}`;
+    `Week of ${info.range} • Pickup Sunday, ${info.pickup}`;
 
   const status = document.getElementById('menuStatus');
   const badge = document.getElementById('closedBadge');
@@ -492,21 +506,41 @@ document.getElementById('orderForm').addEventListener('submit', e => {
     return;
   }
 
-  if (fulfillment === 'delivery' && !document.getElementById('zip').value.trim()) {
+  if (fulfillment === 'delivery' && !document.getElementById('address').value.trim()) {
     alert('Please enter your delivery address.');
     return;
   }
 
+  const info = getWeekInfo(selectedWeek);
+  const name = document.getElementById('name').value.trim();
+  const pickupDate = info.pickup;
+
+  // Build a clean order summary for the confirmation screen.
+  const cart = carts[selectedWeek - 1];
+  const selectedMeals = mealsForWeek(selectedWeek)
+    .filter(m => cart[m.id])
+    .map(m => `<div class="confirm-meal"><span>${m.name} × ${cart[m.id]}</span><span>$${(cart[m.id] * m.price).toFixed(2)}</span></div>`)
+    .join('');
+
+  const fulfillmentText = fulfillment === 'delivery'
+    ? `Delivery Sunday, ${pickupDate} • 4:00–6:00 PM`
+    : `Pickup Sunday, ${pickupDate} • 7:00 PM`;
+
+  document.getElementById('confirmation').innerHTML = `
+    <div class="confirm-title">Order received!</div>
+    <p>Thanks, ${name || 'there'}.</p>
+    <div class="confirm-box">
+      <div class="confirm-heading">Week of ${info.range}</div>
+      <div class="confirm-sub">${fulfillmentText}</div>
+      <div class="confirm-meals">${selectedMeals}</div>
+      <div class="confirm-total"><span>Total</span><span>$${t.total.toFixed(2)}</span></div>
+    </div>
+    <p class="confirm-note">Payment is handled separately. We'll follow up with your payment instructions.</p>
+  `;
+
   document.getElementById('orderForm').style.display = 'none';
   document.getElementById('result').style.display = 'block';
-
-  const info = getWeekInfo(selectedWeek);
-  const mode = fulfillment === 'delivery'
-    ? `Delivery Sunday ${info.pickup}, 4:00–6:00 PM`
-    : `Pickup Sunday ${info.pickup} at 7:00 PM`;
-
-  document.getElementById('confirmation').textContent =
-    `${document.getElementById('name').value}, your ${t.count}-meal order for the week of ${info.range} totals $${t.total.toFixed(2)}. ${mode}.`;
+  window.scrollTo({top: 0, behavior: 'smooth'});
 });
 
 renderWeek();
