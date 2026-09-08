@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Peak Preps — Weekly Order</title>
+<style>
+  :root { --olive:#68734a; --dark:#222; --light:#f5f5f2; --card:#fff; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Arial,Helvetica,sans-serif; background:var(--light); color:var(--dark); }
+  .wrap { max-width:760px; margin:auto; padding:18px; }
+  header { background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 2px 12px #00000012; margin-bottom:18px; }
+  .hero { padding:28px 24px 22px; text-align:center; }
+  .logo { max-width:310px; width:75%; height:auto; margin-bottom:10px; }
+  h1 { margin:4px 0; font-size:28px; }
+  .sub { color:#666; margin:8px 0 0; }
+  .notice { background:#eef0e8; padding:13px 18px; font-size:14px; text-align:center; }
+  section { background:var(--card); border-radius:18px; padding:22px; margin-bottom:16px; box-shadow:0 2px 12px #0000000c; }
+  h2 { margin:0 0 16px; font-size:20px; }
+  label { display:block; font-weight:700; margin:12px 0 7px; }
+  input, select, textarea { width:100%; padding:12px; border:1px solid #ccc; border-radius:10px; font:inherit; background:#fff; }
+  .meal { border:1px solid #ddd; border-radius:15px; overflow:hidden; margin:14px 0; background:#fff; }
+  .meal img { width:100%; height:190px; object-fit:cover; display:block; background:#ddd; }
+  .meal-body { padding:16px; }
+  .meal-top { display:flex; justify-content:space-between; gap:15px; align-items:flex-start; }
+  .meal-name { font-size:19px; font-weight:800; }
+  .price { font-size:18px; font-weight:800; white-space:nowrap; }
+  .desc { color:#666; margin:7px 0 14px; line-height:1.4; }
+  .qty { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .qty button { width:42px; height:42px; border:0; border-radius:50%; background:#e7e9df; font-size:24px; cursor:pointer; }
+  .qty span { min-width:35px; text-align:center; font-size:20px; font-weight:800; }
+  .summary { position:sticky; bottom:10px; background:#222; color:#fff; border-radius:15px; padding:16px 18px; margin:16px 0; box-shadow:0 4px 18px #0005; }
+  .summary-row { display:flex; justify-content:space-between; margin:5px 0; color:#ddd; }
+  .total { display:flex; justify-content:space-between; font-size:24px; font-weight:800; border-top:1px solid #555; padding-top:10px; margin-top:8px; }
+  .submit { width:100%; padding:16px; border:0; border-radius:12px; background:var(--olive); color:#fff; font-size:18px; font-weight:800; cursor:pointer; }
+  .discount-meter { background:#f3f4ee; border-radius:12px; padding:13px; }
+  .meter-title { font-size:14px; margin-bottom:8px; }
+  .meter-track { height:10px; background:#ddd; border-radius:99px; overflow:hidden; }
+  .meter-fill { height:100%; width:0%; background:var(--olive); border-radius:99px; transition:width .2s ease; }
+  .meter-text { font-size:13px; color:#666; margin-top:7px; }
+  .small { font-size:13px; color:#666; line-height:1.45; }
+
+  .section-heading { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; margin-bottom:12px; }
+  .week-heading { color:#666; font-size:14px; margin-top:-8px; }
+  .closed-badge { background:#eee; color:#666; border-radius:999px; padding:7px 10px; font-size:12px; font-weight:800; white-space:nowrap; }
+  .week-nav { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; margin:0 0 12px; }
+  .week-tab { border:1px solid #d4d6ce; background:#f7f7f4; color:#444; border-radius:10px; padding:10px 6px; font:inherit; font-size:12px; font-weight:800; cursor:pointer; line-height:1.25; }
+  .week-tab.active { background:var(--olive); color:#fff; border-color:var(--olive); }
+  .week-tab:disabled { cursor:default; opacity:.7; }
+  .sheet-loading { font-size:12px; color:#777; margin-top:6px; }
+  .menu-status { background:#f3f4ee; border-radius:10px; padding:10px 12px; margin-bottom:12px; font-size:13px; color:#666; }
+  .menu-status.closed { background:#f0f0f0; }
+  @media (max-width:560px) {
+    .week-nav { grid-template-columns:repeat(2,1fr); }
+    .week-tab { font-size:13px; }
+  }
+  #result { display:none; text-align:center; }
+  .success { font-size:22px; font-weight:800; margin-bottom:10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="hero">
+    <img class="logo" src="peak-preps-logo.png" alt="Peak Preps logo">
+    <h1>Weekly Meal Prep</h1>
+    <p class="sub">Fresh meals prepared for your week.</p>
+  </div>
+  <div class="notice">Orders close Thursday at 8:00 PM • Pickup Sunday 7:00 PM • Delivery Sunday 4–6 PM</div>
+</header>
+
+<form id="orderForm">
+<section>
+  <h2>1. Your Information</h2>
+  <label for="name">Name</label>
+  <input id="name" required placeholder="First and last name">
+  <label for="phone">Phone</label>
+  <input id="phone" required placeholder="(555) 555-5555">
+</section>
+
+<section>
+  <div class="section-heading">
+    <div>
+      <h2>2. Choose Your Meals</h2>
+      <div id="weekHeading" class="week-heading"></div>
+    </div>
+    <div id="closedBadge" class="closed-badge" style="display:none">Ordering Closed</div>
+  </div>
+
+  <div id="weekNav" class="week-nav" aria-label="Choose meal prep week">
+    <button type="button" id="prevWeekBtn" class="week-tab"></button>
+    <button type="button" id="thisWeekBtn" class="week-tab"></button>
+    <button type="button" id="nextWeekBtn" class="week-tab"></button>
+    <button type="button" id="week2Btn" class="week-tab"></button>
+  </div>
+
+  <div id="menuStatus" class="menu-status"></div>
+  <div id="mealList"></div>
+</section>
+
+</section>
+
+<div class="summary">
+  <div class="summary-row"><span>Meals</span><span id="mealCount">0</span></div>
+  <div id="lineItems"></div>
+  <div class="summary-row" id="discountRow" style="display:none"><span id="discountLabel">Discount</span><span id="discountAmount">-$0.00</span></div>
+  <div class="summary-row" id="deliveryRow" style="display:none"><span>Delivery</span><span>$5.00</span></div>
+  <div class="total"><span>Total</span><span id="total">$0.00</span></div>
+</div>
+
+<section>
+  <h2>3. Pickup or Delivery</h2>
+  <label for="fulfillment">How will you receive your order?</label>
+  <select id="fulfillment" required onchange="toggleDelivery()">
+    <option value="">Choose an option</option>
+    <option value="pickup">Pickup — Sunday at 7:00 PM</option>
+    <option value="delivery">Delivery — Sunday 4:00–6:00 PM (+$5)</option>
+  </select>
+
+  <div id="addressFields" style="display:none">
+    <label for="address">Delivery Address</label>
+    <input id="address" placeholder="Street address">
+
+    <label for="city">City</label>
+    <input id="city" value="Goldsboro" placeholder="City">
+
+    <label for="state">State</label>
+    <input id="state" value="NC" placeholder="State">
+
+    <label for="zip">ZIP Code</label>
+    <input id="zip" placeholder="ZIP Code">
+    <p class="small">Delivery is available Sunday between 4:00 and 6:00 PM. A $5 delivery fee applies.</p>
+  </div>
+
+  <div id="discountMeter" class="discount-meter" style="margin-top:14px">
+    <div id="meterHeadline" class="meter-title">Add 5 meals to unlock 50% off your 5th meal.</div>
+    <div class="meter-track"><div id="meterFill" class="meter-fill"></div></div>
+    <div id="meterText" class="meter-text">You've saved $0.00 so far.</div>
+  </div>
+
+  <div id="discountInfo" class="small" style="margin-top:14px">
+    <strong>Meal discounts:</strong> Every 5th meal is 50% off (5th, 10th, 15th, 20th, etc.).
+  </div>
+
+  <label for="notes">Special instructions (optional)</label>
+  <textarea id="notes" rows="3" placeholder="Anything we should know?"></textarea>
+</section>
+
+<section>
+  <button class="submit" type="submit">Place My Order</button>
+</section>
+</form>
+
+<section id="result">
+  <div class="success">Order received! 🎉</div>
+  <p id="confirmation"></p>
+  <p class="small">This is a demo. In the production version, this submission would be written directly to a Google Sheet.</p>
+</section>
+</div>
+
+<script>
+const fallbackImages = {
+  'pepper-steak':'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1200&q=80',
+  'pizza-pasta':'https://images.unsplash.com/photo-1551892374-ecf8754cf8b0?auto=format&fit=crop&w=1200&q=80',
+  'salmon-asparagus':'https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=1200&q=80',
+  'spicy-honey-chicken':'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=1200&q=80'
+};
+
+let mealsCatalog = [];
+const SHEET_ID = '1nZ43ma85ZPr-IPI6WnxIH9PrEACWA6Yw_14t1cbFcMA';
+const MENU_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=MENU&range=A2:I1000`;
+
+
+// Each tab represents a Sunday pickup week.
+// Previous week is view-only; the current week and two following weeks are orderable.
+
+function parseGoogleDate(value) {
+  if (value instanceof Date) return value;
+  const s = String(value || '').trim();
+  const m = s.match(/^Date\((\d+),(\d+),(\d+)\)$/);
+  if (m) return new Date(Number(m[1]), Number(m[2]), Number(m[3]));
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+
+function normalizeMeal(row) {
+  const pickup = parseGoogleDate(row[0]);
+  const pickupDate = pickup ? dateKey(pickup) : String(row[0] || '').slice(0,10);
+  const id = String(row[2] || '').trim() || ('meal-' + Math.random().toString(36).slice(2));
+  const name = String(row[3] || '').trim();
+  const desc = String(row[4] || '').trim();
+  const price = Number(row[5]) || 10;
+  const image = String(row[6] || '').trim() || fallbackImages[id] || '';
+  const available = String(row[7] || 'Yes').trim().toLowerCase() !== 'no';
+  const sort = Number(row[8]) || 999;
+  return { id, name, desc, price, image, available, sort, pickupDate };
+}
+
+async function loadMenuFromGoogleSheet() {
+  try {
+    const response = await fetch(MENU_URL, {cache:'no-store'});
+    if (!response.ok) throw new Error('Google Sheet request failed: ' + response.status);
+
+    const text = await response.text();
+    const jsonText = text.replace(/^\/\*O_o\*\/\s*/, '').replace(/^google\.visualization\.Query\.setResponse\(/, '').replace(/\);\s*$/, '');
+    const data = JSON.parse(jsonText);
+
+    const rows = (data.table && data.table.rows) || [];
+    const values = rows.map(r => (r.c || []).map(c => c ? c.v : ''));
+
+    mealsCatalog = values
+      .map(normalizeMeal)
+      .filter(m => m.name && m.available)
+      .sort((a,b) => a.sort - b.sort);
+
+    if (!mealsCatalog.length) {
+      throw new Error('No available meals found in the MENU tab.');
+    }
+
+    carts.length = 0;
+    carts.push(
+      ...[0,1,2].map(() => Object.fromEntries(mealsCatalog.map(m => [m.id, 0])))
+    );
+
+    renderWeek();
+  } catch (err) {
+    console.error(err);
+    document.getElementById('mealList').innerHTML =
+      `<div class="menu-status closed"><strong>We couldn't load the menu from Google Sheets.</strong><br>
+       Make sure the spreadsheet is shared as <strong>Anyone with the link → Viewer</strong>, then refresh this page.<br>
+       <span class="small">Technical detail: ${String(err.message || err).replace(/</g,'&lt;')}</span></div>`;
+    document.getElementById('weekHeading').textContent = '';
+    document.getElementById('menuStatus').textContent =
+      'Menu connection error. Please refresh and try again.';
+    document.getElementById('menuStatus').className = 'menu-status closed';
+  }
+}
+
+function startOfPickupWeek() {
+  const d = new Date();
+  const day = d.getDay(); // Sunday = 0
+  const result = new Date(d);
+  if (day !== 0) result.setDate(d.getDate() + (7 - day));
+  result.setHours(0,0,0,0);
+  return result;
+}
+
+const anchorSunday = startOfPickupWeek();
+let selectedWeek = 1;
+
+// Keep a separate cart for each week so switching tabs doesn't erase choices.
+const carts = [0,1,2].map(() =>
+  Object.fromEntries(mealsCatalog.map(m => [m.id, 0]))
+);
+
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function formatShortDate(date) {
+  return date.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+}
+
+function formatDateRange(sunday) {
+  const saturday = addDays(sunday, 6);
+  const sameMonth = sunday.getMonth() === saturday.getMonth();
+  if (sameMonth) {
+    return `${sunday.toLocaleDateString('en-US',{month:'long'})} ${sunday.getDate()}–${saturday.getDate()}`;
+  }
+  return `${formatShortDate(sunday)}–${formatShortDate(saturday)}`;
+}
+
+function getWeekInfo(index) {
+  const sunday = addDays(anchorSunday, (index - 1) * 7);
+  return {
+    sunday,
+    range: formatDateRange(sunday),
+    pickup: sunday.toLocaleDateString('en-US',{month:'short',day:'numeric'}),
+    orderable: index >= 1
+  };
+}
+
+function dateKey(date) {
+  return date.toISOString().slice(0,10);
+}
+
+function mealsForWeek(index) {
+  const target = dateKey(getWeekInfo(index).sunday);
+  return mealsCatalog.filter(m => {
+    // Pickup date is stored on the meal object below.
+    return m.pickupDate === target;
+  });
+}
+
+function renderWeekNav() {
+  const labels = [
+    `‹ Previous<br><span>${formatShortDate(getWeekInfo(0).sunday)}</span>`,
+    `THIS WEEK<br><span>${formatShortDate(getWeekInfo(1).sunday)}</span>`,
+    `NEXT WEEK<br><span>${formatShortDate(getWeekInfo(2).sunday)}</span>`,
+    `WEEK +2<br><span>${formatShortDate(getWeekInfo(3).sunday)}</span>`
+  ];
+
+  const buttons = [
+    document.getElementById('prevWeekBtn'),
+    document.getElementById('thisWeekBtn'),
+    document.getElementById('nextWeekBtn'),
+    document.getElementById('week2Btn')
+  ];
+
+  buttons.forEach((btn, i) => {
+    btn.innerHTML = labels[i];
+    btn.classList.toggle('active', selectedWeek === i);
+    btn.disabled = false;
+    btn.onclick = () => {
+      selectedWeek = i;
+      renderWeek();
+    };
+  });
+}
+
+function renderMeals() {
+  const list = document.getElementById('mealList');
+  const info = getWeekInfo(selectedWeek);
+  const cart = selectedWeek === 0 ? null : carts[selectedWeek - 1];
+  const weekMeals = mealsForWeek(selectedWeek);
+
+  list.innerHTML = weekMeals.length ? weekMeals.map(m => {
+    const qty = cart ? (cart[m.id] || 0) : 0;
+    const controls = selectedWeek === 0
+      ? `<div class="qty"><strong>Quantity</strong><span class="small">Orders closed</span></div>`
+      : `<div class="qty">
+          <strong>Quantity</strong>
+          <div>
+            <button type="button" aria-label="Decrease ${m.name}" onclick="changeQty('${m.id}',-1)">−</button>
+            <span id="${m.id}Qty">${qty}</span>
+            <button type="button" aria-label="Increase ${m.name}" onclick="changeQty('${m.id}',1)">+</button>
+          </div>
+        </div>`;
+
+    return `<div class="meal">
+      ${m.image ? `<img src="${m.image}" alt="${m.name.replace(/"/g,'&quot;')}">` : ''}
+      <div class="meal-body">
+        <div class="meal-top"><div class="meal-name">${m.name}</div><div class="price">$${m.price.toFixed(2).replace('.00','')}</div></div>
+        <div class="desc">${m.desc}</div>
+        ${controls}
+      </div>
+    </div>`;
+  }).join('') : `<div class="menu-status ${selectedWeek === 0 ? 'closed' : ''}">
+      ${selectedWeek === 0
+        ? `No menu was published for the previous week.`
+        : `The menu for ${info.range} hasn't been published yet. Check back soon.`}
+    </div>`;
+
+  document.getElementById('weekHeading').textContent =
+    `Pickup Sunday, ${info.pickup} • ${info.range}`;
+
+  const status = document.getElementById('menuStatus');
+  const badge = document.getElementById('closedBadge');
+
+  if (selectedWeek === 0) {
+    status.textContent = `This menu was for the week of ${info.range}. Orders are closed, but you can view the meals that were offered.`;
+    status.className = 'menu-status closed';
+    badge.style.display = 'block';
+  } else if (!weekMeals.length) {
+    status.textContent = `The menu for ${info.range} has not been published yet.`;
+    status.className = 'menu-status';
+    badge.style.display = 'none';
+  } else {
+    status.textContent = `Ordering for the week of ${info.range}. Pickup Sunday at 7:00 PM or delivery Sunday 4:00–6:00 PM.`;
+    status.className = 'menu-status';
+    badge.style.display = 'none';
+  }
+}
+function renderWeek() {
+  renderWeekNav();
+  renderMeals();
+  updateTotal();
+}
+
+function changeQty(id, delta) {
+  if (selectedWeek === 0) return;
+  const cart = carts[selectedWeek - 1];
+  cart[id] = Math.max(0, Math.min(20, cart[id] + delta));
+  document.getElementById(id + 'Qty').textContent = cart[id];
+  updateTotal();
+}
+
+function getTotals() {
+  if (selectedWeek === 0) {
+    return {count:0, subtotal:0, discount:0, delivery:0, total:0};
+  }
+
+  const cart = carts[selectedWeek - 1];
+  let count = 0, subtotal = 0;
+
+  for (const m of mealsForWeek(selectedWeek)) {
+    count += (cart[m.id] || 0);
+    subtotal += (cart[m.id] || 0) * m.price;
+  }
+
+  const discountCount = Math.floor(count / 5);
+  const discount = discountCount * 5; // 50% off every 5th $10 meal
+  const delivery = document.getElementById('fulfillment')?.value === 'delivery' ? 5 : 0;
+
+  return {count, subtotal, discountCount, discount, delivery, total:subtotal-discount+delivery};
+}
+
+function updateDiscountMeter(t) {
+  const meter = document.getElementById('discountMeter');
+  if (!meter) return;
+
+  if (selectedWeek === 0) {
+    meter.style.display = 'none';
+    return;
+  }
+
+  meter.style.display = 'block';
+  const next = (Math.floor(t.count / 5) + 1) * 5;
+  const within = t.count % 5;
+  const progress = within === 0 && t.count > 0 ? 100 : (within / 5) * 100;
+
+  document.getElementById('meterFill').style.width = progress + '%';
+
+  const headline = document.getElementById('meterHeadline');
+  if (t.count === 0) {
+    headline.textContent = 'Add 5 meals to unlock 50% off your 5th meal.';
+  } else if (within === 0) {
+    headline.textContent = 'Discount unlocked! Add 5 more meals for your next discount.';
+  } else {
+    const remaining = 5 - within;
+    headline.textContent = `Add ${remaining} more meal${remaining===1?'':'s'} to get 50% off meal #${next}.`;
+  }
+
+  document.getElementById('meterText').textContent = `You've saved $${t.discount.toFixed(2)} so far.`;
+}
+
+function toggleDelivery() {
+  const isDelivery = document.getElementById('fulfillment').value === 'delivery';
+  document.getElementById('addressFields').style.display = isDelivery ? 'block' : 'none';
+  document.getElementById('address').required = isDelivery;
+  document.getElementById('city').required = isDelivery;
+  document.getElementById('state').required = isDelivery;
+  document.getElementById('zip').required = isDelivery;
+  updateTotal();
+}
+
+function updateTotal() {
+  const t = getTotals();
+  let html = '';
+
+  if (selectedWeek > 0) {
+    const cart = carts[selectedWeek - 1];
+    for (const m of mealsForWeek(selectedWeek)) {
+      if (cart[m.id]) {
+        html += `<div class="summary-row"><span>${m.name} × ${cart[m.id]}</span><span>$${(cart[m.id]*m.price).toFixed(2)}</span></div>`;
+      }
+    }
+  }
+
+  document.getElementById('mealCount').textContent = t.count;
+  document.getElementById('lineItems').innerHTML = html;
+
+  const discountRow = document.getElementById('discountRow');
+  discountRow.style.display = t.discount > 0 ? 'flex' : 'none';
+  document.getElementById('discountLabel').textContent = 'Meal discount';
+  document.getElementById('discountAmount').textContent = '-$' + t.discount.toFixed(2);
+  document.getElementById('deliveryRow').style.display = t.delivery ? 'flex' : 'none';
+  document.getElementById('total').textContent = '$' + t.total.toFixed(2);
+
+  updateDiscountMeter(t);
+}
+
+document.getElementById('orderForm').addEventListener('submit', e => {
+  e.preventDefault();
+
+  if (selectedWeek === 0) {
+    alert('The previous week is view-only. Please choose This Week, Next Week, or Week +2.');
+    return;
+  }
+
+  const t = getTotals();
+  if (!t.count) {
+    alert('Please choose at least one meal.');
+    return;
+  }
+
+  const fulfillment = document.getElementById('fulfillment').value;
+  if (!fulfillment) {
+    alert('Please choose pickup or delivery.');
+    return;
+  }
+
+  if (fulfillment === 'delivery' && !document.getElementById('zip').value.trim()) {
+    alert('Please enter your delivery address.');
+    return;
+  }
+
+  document.getElementById('orderForm').style.display = 'none';
+  document.getElementById('result').style.display = 'block';
+
+  const info = getWeekInfo(selectedWeek);
+  const mode = fulfillment === 'delivery'
+    ? `Delivery Sunday ${info.pickup}, 4:00–6:00 PM`
+    : `Pickup Sunday ${info.pickup} at 7:00 PM`;
+
+  document.getElementById('confirmation').textContent =
+    `${document.getElementById('name').value}, your ${t.count}-meal order for the week of ${info.range} totals $${t.total.toFixed(2)}. ${mode}.`;
+});
+
+renderWeek();
+document.getElementById('menuStatus').textContent = 'Loading this week’s menu from Google Sheets…';
+loadMenuFromGoogleSheet();
+</script>
+</body>
+</html>
