@@ -77,7 +77,7 @@
     <h1>Weekly Meal Prep</h1>
     <p class="sub">Fresh meals prepared for your week.</p>
   </div>
-  <div class="notice">Orders close Thursday at 8:00 PM • Pickup Sunday 7:00 PM • Delivery Sunday 4–6 PM</div>
+  <div class="notice">Orders close Friday at 9:00 PM • Pickup Sunday 7:00 PM • Delivery Sunday 4–6 PM</div>
 </header>
 
 <form id="orderForm">
@@ -293,11 +293,16 @@ function formatDateRange(sunday) {
 
 function getWeekInfo(index) {
   const sunday = addDays(anchorSunday, (index - 1) * 7);
+  const close = new Date(sunday);
+  close.setDate(close.getDate() - 2); // Friday before pickup Sunday
+  close.setHours(21, 0, 0, 0); // 9:00 PM
+
   return {
     sunday,
+    close,
     range: formatDateRange(sunday),
     pickup: sunday.toLocaleDateString('en-US',{month:'short',day:'numeric'}),
-    orderable: index >= 1
+    orderable: index >= 1 && new Date() < close
   };
 }
 
@@ -347,7 +352,7 @@ function renderMeals() {
 
   list.innerHTML = weekMeals.length ? weekMeals.map(m => {
     const qty = cart ? (cart[m.id] || 0) : 0;
-    const controls = selectedWeek === 0
+    const controls = selectedWeek === 0 || !info.orderable
       ? `<div class="qty"><strong>Quantity</strong><span class="small">Orders closed</span></div>`
       : `<div class="qty">
           <strong>Quantity</strong>
@@ -382,12 +387,16 @@ function renderMeals() {
     status.textContent = `This menu was for the week of ${info.range}. Orders are closed, but you can view the meals that were offered.`;
     status.className = 'menu-status closed';
     badge.style.display = 'block';
+  } else if (!info.orderable && weekMeals.length) {
+    status.textContent = `Ordering for ${info.range} closed Friday at 9:00 PM. You can still view the menu.`;
+    status.className = 'menu-status closed';
+    badge.style.display = 'block';
   } else if (!weekMeals.length) {
     status.textContent = `The menu for ${info.range} has not been published yet.`;
     status.className = 'menu-status';
     badge.style.display = 'none';
   } else {
-    status.textContent = `Ordering for the week of ${info.range}. Pickup Sunday at 7:00 PM or delivery Sunday 4:00–6:00 PM.`;
+    status.textContent = `Ordering for the week of ${info.range}. Orders close Friday at 9:00 PM. Pickup Sunday at 7:00 PM or delivery Sunday 4:00–6:00 PM.`;
     status.className = 'menu-status';
     badge.style.display = 'none';
   }
@@ -617,8 +626,15 @@ function submitOrderToGoogle(payload) {
 document.getElementById('orderForm').addEventListener('submit', async e => {
   e.preventDefault();
 
+  const info = getWeekInfo(selectedWeek);
+
   if (selectedWeek === 0) {
     alert('The previous week is view-only. Please choose This Week, Next Week, or Week +2.');
+    return;
+  }
+
+  if (!info.orderable) {
+    alert(`Orders for ${info.range} closed Friday at 9:00 PM.`);
     return;
   }
 
@@ -645,7 +661,6 @@ document.getElementById('orderForm').addEventListener('submit', async e => {
     submitButton.textContent = 'Submitting…';
   }
 
-  const info = getWeekInfo(selectedWeek);
   const weekStart = getMonday(info.sunday);
   const weekStartText = weekStart.toLocaleDateString('en-US', {month:'long', day:'numeric'});
   const weekEndText = info.sunday.toLocaleDateString('en-US', {month:'long', day:'numeric'});
