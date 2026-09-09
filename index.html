@@ -179,9 +179,9 @@ const fallbackImages = {
 };
 
 let mealsCatalog = [];
-const SHEET_ID = '1nZ43ma85ZPr-IPI6WnxIH9PrEACWA6Yw_14t1cbFcMA';
-const MENU_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=MENU&range=A2:I1000`;
-const ORDER_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwetmiDusDnhezLi9d0nbd3kuNbQxGDgvTsEqlzVNfhpgaGiSYdT8MbYN32ogbsGZtdNg/exec';
+const SHEET_ID = '1YsiaXXp-aFLQHMPY3aPi_tuiX9fRMymnVcnt1ouEcg4';
+const MENU_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=MENU&range=A3:I1000`;
+const ORDER_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxDwe7TFxXvliocM9a0gVsHJ0I98P2687l_6M1-qSINrqo9Jr2l8cuTMyR7WHP89Xjm/exec';
 
 
 // Each tab represents a Sunday pickup week.
@@ -558,8 +558,8 @@ function buildOrderPayload() {
 
 function submitOrderToGoogle(payload) {
   return new Promise((resolve) => {
-    // A normal HTML form POST avoids browser CORS/preflight problems with
-    // Google Apps Script web apps.
+    // Use a real HTML form with individual fields. This avoids CORS and avoids
+    // depending on Google Apps Script JSON parsing for the scalar order fields.
     const iframeName = 'peakPrepsOrderFrame_' + Date.now();
     const iframe = document.createElement('iframe');
     iframe.name = iframeName;
@@ -572,30 +572,45 @@ function submitOrderToGoogle(payload) {
     form.target = iframeName;
     form.style.display = 'none';
 
-    const input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = 'payload';
-    input.value = JSON.stringify(payload);
-    form.appendChild(input);
-
-    document.body.appendChild(form);
-    iframe.onload = () => {
-      setTimeout(() => {
-        form.remove();
-        iframe.remove();
-        resolve();
-      }, 400);
+    const add = (name, value) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = name;
+      input.value = value == null ? '' : String(value);
+      form.appendChild(input);
     };
 
-    form.submit();
+    add('pickupDate', payload.pickupDate);
+    add('customerName', payload.customerName);
+    add('phone', payload.phone);
+    add('fulfillment', payload.fulfillment);
+    add('address', payload.address);
+    add('city', payload.city);
+    add('state', payload.state);
+    add('zip', payload.zip);
+    add('notes', payload.notes);
+    add('itemCount', payload.items.length);
 
-    // Don't leave the customer waiting if the external response doesn't
-    // trigger an iframe load event.
-    setTimeout(() => {
-      if (document.body.contains(form)) form.remove();
-      if (document.body.contains(iframe)) iframe.remove();
+    payload.items.forEach((item, i) => {
+      add(`item_${i}_mealId`, item.mealId);
+      add(`item_${i}_mealName`, item.mealName);
+      add(`item_${i}_quantity`, item.quantity);
+      add(`item_${i}_unitPrice`, item.unitPrice);
+    });
+
+    document.body.appendChild(form);
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      form.remove();
+      iframe.remove();
       resolve();
-    }, 2500);
+    };
+
+    iframe.onload = () => setTimeout(finish, 250);
+    form.submit();
+    setTimeout(finish, 2500);
   });
 }
 
@@ -692,6 +707,7 @@ renderWeek();
 document.getElementById('menuStatus').textContent = 'Loading this week’s menu from Google Sheets…';
 loadMenuFromGoogleSheet();
 </script>
-<div style="text-align:center;color:#999;font-size:10px;margin:18px 0 8px">Peak Preps • v18</div>
+<div style="text-align:center;color:#999;font-size:10px;margin:18px 0 8px">Peak Preps • v20</div>
+<div style="text-align:center;font-size:10px;color:#aaa;margin:12px 0">Peak Preps • v20</div>
 </body>
 </html>
