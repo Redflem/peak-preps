@@ -181,6 +181,7 @@ const fallbackImages = {
 let mealsCatalog = [];
 const SHEET_ID = '1nZ43ma85ZPr-IPI6WnxIH9PrEACWA6Yw_14t1cbFcMA';
 const MENU_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=MENU&range=A2:I1000`;
+const ORDER_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwetmiDusDnhezLi9d0nbd3kuNbQxGDgvTsEqlzVNfhpgaGiSYdT8MbYN32ogbsGZtdNg/exec';
 
 
 // Each tab represents a Sunday pickup week.
@@ -490,7 +491,115 @@ function updateTotal() {
   updateDiscountMeter(t);
 }
 
-document.getElementById('orderForm').addEventListener('submit', e => {
+function buildOrderPayload() {
+  const t = getTotals();
+  const cart = carts[selectedWeek - 1];
+  const info = getWeekInfo(selectedWeek);
+
+  // Allocate the staggered $5 discount to every 5th meal in menu order.
+  let mealNumber = 0;
+  const items = [];
+
+  for (const m of mealsForWeek(selectedWeek)) {
+    const qty = cart[m.id] || 0;
+    for (let i = 0; i < qty; i++) {
+      mealNumber++;
+      const discount = mealNumber % 5 === 0 ? 5 : 0;
+      items.push({
+        mealId: m.id,
+        mealName: m.name,
+        quantity: 1,
+        unitPrice: m.price,
+        lineTotal: m.price,
+        discount: discount,
+        netLineTotal: m.price - discount
+      });
+    }
+  }
+
+  // Collapse identical meals while preserving their total discount.
+  const grouped = {};
+  items.forEach(item => {
+    if (!grouped[item.mealId]) {
+      grouped[item.mealId] = {
+        mealId: item.mealId,
+        mealName: item.mealName,
+        quantity: 0,
+        unitPrice: item.unitPrice,
+        lineTotal: 0,
+        discount: 0,
+        netLineTotal: 0
+      };
+    }
+    grouped[item.mealId].quantity += 1;
+    grouped[item.mealId].lineTotal += item.lineTotal;
+    grouped[item.mealId].discount += item.discount;
+    grouped[item.mealId].netLineTotal += item.netLineTotal;
+  });
+
+  return {
+    pickupDate: getWeekInfo(selectedWeek).sunday.toISOString().slice(0,10),
+    customerName: document.getElementById('name').value.trim(),
+    phone: document.getElementById('phone').value.trim(),
+    fulfillment: document.getElementById('fulfillment').value,
+    address: document.getElementById('address').value.trim(),
+    city: document.getElementById('city').value.trim(),
+    state: document.getElementById('state').value.trim(),
+    zip: document.getElementById('zip').value.trim(),
+    notes: document.getElementById('notes').value.trim(),
+    mealCount: t.count,
+    subtotal: t.subtotal,
+    discount: t.discount,
+    deliveryFee: t.delivery,
+    total: t.total,
+    items: Object.values(grouped)
+  };
+}
+
+function submitOrderToGoogle(payload) {
+  return new Promise((resolve) => {
+    // A normal HTML form POST avoids browser CORS/preflight problems with
+    // Google Apps Script web apps.
+    const iframeName = 'peakPrepsOrderFrame_' + Date.now();
+    const iframe = document.createElement('iframe');
+    iframe.name = iframeName;
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = ORDER_ENDPOINT;
+    form.target = iframeName;
+    form.style.display = 'none';
+
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'payload';
+    input.value = JSON.stringify(payload);
+    form.appendChild(input);
+
+    document.body.appendChild(form);
+    iframe.onload = () => {
+      setTimeout(() => {
+        form.remove();
+        iframe.remove();
+        resolve();
+      }, 400);
+    };
+
+    form.submit();
+
+    // Don't leave the customer waiting if the external response doesn't
+    // trigger an iframe load event.
+    setTimeout(() => {
+      if (document.body.contains(form)) form.remove();
+      if (document.body.contains(iframe)) iframe.remove();
+      resolve();
+    }, 2500);
+  });
+}
+
+document.getElementById('orderForm').addEventListener('submit', async e => {
   e.preventDefault();
 
   if (selectedWeek === 0) {
@@ -515,15 +624,20 @@ document.getElementById('orderForm').addEventListener('submit', e => {
     return;
   }
 
+  const submitButton = document.querySelector('#orderForm button[type="submit"]');
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = 'Submitting…';
+  }
+
   const info = getWeekInfo(selectedWeek);
   const weekStart = getMonday(info.sunday);
   const weekStartText = weekStart.toLocaleDateString('en-US', {month:'long', day:'numeric'});
   const weekEndText = info.sunday.toLocaleDateString('en-US', {month:'long', day:'numeric'});
   const name = document.getElementById('name').value.trim();
   const pickupDate = info.pickup;
-
-  // Build a clean order summary for the confirmation screen.
   const cart = carts[selectedWeek - 1];
+
   const selectedMeals = mealsForWeek(selectedWeek)
     .filter(m => cart[m.id])
     .map(m => `<div class="confirm-meal"><span>${m.name} × ${cart[m.id]}</span><span>$${(cart[m.id] * m.price).toFixed(2)}</span></div>`)
@@ -532,6 +646,9 @@ document.getElementById('orderForm').addEventListener('submit', e => {
   const fulfillmentText = fulfillment === 'delivery'
     ? `Delivery Sunday, ${pickupDate} • 4:00–6:00 PM`
     : `Pickup Sunday, ${pickupDate} • 7:00 PM`;
+
+  const payload = buildOrderPayload();
+  await submitOrderToGoogle(payload);
 
   document.getElementById('confirmation').innerHTML = `
     <p>Thanks, ${name || 'there'}.</p>
@@ -575,6 +692,6 @@ renderWeek();
 document.getElementById('menuStatus').textContent = 'Loading this week’s menu from Google Sheets…';
 loadMenuFromGoogleSheet();
 </script>
-<div style="text-align:center;color:#999;font-size:10px;margin:18px 0 8px">Peak Preps • v11</div>
+<div style="text-align:center;color:#999;font-size:10px;margin:18px 0 8px">Peak Preps • v14</div>
 </body>
 </html>
