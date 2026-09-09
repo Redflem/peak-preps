@@ -48,10 +48,13 @@
   .week-tab { border:1px solid #d4d6ce; background:#f7f7f4; color:#444; border-radius:10px; padding:10px 6px; font:inherit; font-size:12px; font-weight:800; cursor:pointer; line-height:1.25; }
   .week-tab.active { background:var(--olive); color:#fff; border-color:var(--olive); }
   .week-tab:disabled { cursor:default; opacity:.7; }
-  .confirm-title { font-size:28px; font-weight:900; margin-bottom:8px; }
   .confirm-box { margin:18px auto; max-width:560px; text-align:left; background:#f7f7f4; border-radius:14px; padding:16px; }
   .confirm-heading { font-size:18px; font-weight:900; }
   .confirm-sub { color:#666; margin:4px 0 14px; }
+  .confirm-section-title { font-size:13px; font-weight:900; text-transform:uppercase; letter-spacing:.04em; margin:8px 0 4px; }
+  .confirm-pricing { margin-top:14px; padding-top:10px; border-top:1px solid #ddd; }
+  .confirm-price-row { display:flex; justify-content:space-between; gap:16px; padding:6px 0; color:#444; }
+  .confirm-price-row.discount { color:#536638; font-weight:800; }
   .confirm-meal { display:flex; justify-content:space-between; gap:16px; padding:9px 0; border-top:1px solid #ddd; }
   .confirm-total { display:flex; justify-content:space-between; gap:16px; padding-top:14px; margin-top:6px; border-top:2px solid #bbb; font-size:18px; font-weight:900; }
   .confirm-note { color:#666; font-size:13px; }
@@ -531,13 +534,34 @@ document.getElementById('orderForm').addEventListener('submit', e => {
     : `Pickup Sunday, ${pickupDate} • 7:00 PM`;
 
   document.getElementById('confirmation').innerHTML = `
-    <div class="confirm-title">Order received!</div>
     <p>Thanks, ${name || 'there'}.</p>
     <div class="confirm-box">
       <div class="confirm-heading">Order Week: ${weekStartText}–${weekEndText}</div>
       <div class="confirm-sub">${fulfillmentText}</div>
+
+      <div class="confirm-section-title">Your Meals</div>
       <div class="confirm-meals">${selectedMeals}</div>
-      <div class="confirm-total"><span>Total</span><span>$${t.total.toFixed(2)}</span></div>
+
+      <div class="confirm-pricing">
+        <div class="confirm-price-row">
+          <span>Meal subtotal</span>
+          <span>$${t.subtotal.toFixed(2)}</span>
+        </div>
+        ${t.discount > 0 ? `
+        <div class="confirm-price-row discount">
+          <span>Meal discount</span>
+          <span>−$${t.discount.toFixed(2)}</span>
+        </div>` : ''}
+        ${t.delivery > 0 ? `
+        <div class="confirm-price-row">
+          <span>Delivery</span>
+          <span>$${t.delivery.toFixed(2)}</span>
+        </div>` : ''}
+        <div class="confirm-total">
+          <span>Total</span>
+          <span>$${t.total.toFixed(2)}</span>
+        </div>
+      </div>
     </div>
     <p class="confirm-note">Payment is handled separately. We'll follow up with your payment instructions.</p>
   `;
