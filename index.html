@@ -171,12 +171,6 @@
 </div>
 
 <script>
-const fallbackImages = {
-  'pepper-steak':'https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1200&q=80',
-  'pizza-pasta':'https://images.unsplash.com/photo-1551892374-ecf8754cf8b0?auto=format&fit=crop&w=1200&q=80',
-  'salmon-asparagus':'https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=1200&q=80',
-  'spicy-honey-chicken':'https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=1200&q=80'
-};
 
 let mealsCatalog = [];
 const SHEET_ID = '1YsiaXXp-aFLQHMPY3aPi_tuiX9fRMymnVcnt1ouEcg4';
@@ -203,7 +197,7 @@ function normalizeMeal(row) {
   const name = String(row[3] || '').trim();
   const desc = String(row[4] || '').trim();
   const price = Number(row[5]) || 10;
-  const image = String(row[6] || '').trim() || fallbackImages[id] || '';
+  const image = String(row[6] || '').trim();
   const available = String(row[7] || 'Yes').trim().toLowerCase() !== 'no';
   const sort = Number(row[8]) || 999;
   return { id, name, desc, price, image, available, sort, pickupDate };
@@ -722,7 +716,6 @@ renderWeek();
 document.getElementById('menuStatus').textContent = 'Loading this week’s menu from Google Sheets…';
 loadMenuFromGoogleSheet();
 </script>
-<div style="text-align:center;color:#999;font-size:10px;margin:18px 0 8px">Peak Preps • v20</div>
-<div style="text-align:center;font-size:10px;color:#aaa;margin:12px 0">Peak Preps • v20</div>
+<div style="text-align:center;color:#999;font-size:10px;margin:18px 0 8px">Peak Preps • v22</div>
 </body>
 </html>
