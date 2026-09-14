@@ -25,7 +25,8 @@
   .meal-top { display:flex; justify-content:space-between; gap:15px; align-items:flex-start; }
   .meal-name { font-size:19px; font-weight:800; }
   .price { font-size:18px; font-weight:800; white-space:nowrap; }
-  .desc { color:#666; margin:7px 0 14px; line-height:1.4; }
+  .desc { color:#666; margin:7px 0 10px; line-height:1.4; }
+  .macros { color:#555; font-size:13px; font-weight:700; margin:0 0 14px; }
   .qty { display:flex; align-items:center; justify-content:space-between; gap:12px; }
   .qty button { width:42px; height:42px; border:0; border-radius:50%; background:#e7e9df; font-size:24px; cursor:pointer; }
   .qty span { min-width:35px; text-align:center; font-size:20px; font-weight:800; }
@@ -175,6 +176,7 @@
 let mealsCatalog = [];
 const SHEET_ID = '1YsiaXXp-aFLQHMPY3aPi_tuiX9fRMymnVcnt1ouEcg4';
 const MENU_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=MENU&range=A3:I1000`;
+const MACROS_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=MACROS&range=A2:H1000`;
 const ORDER_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxDwe7TFxXvliocM9a0gVsHJ0I98P2687l_6M1-qSINrqo9Jr2l8cuTMyR7WHP89Xjm/exec';
 
 
@@ -190,6 +192,18 @@ function parseGoogleDate(value) {
   return isNaN(d) ? null : d;
 }
 
+function normalizeMacro(row) {
+  const id = String(row[0] || '').trim();
+  if (!id) return null;
+  return {
+    mealId: id,
+    calories: row[4] === '' || row[4] == null ? '' : Number(row[4]),
+    protein: row[5] === '' || row[5] == null ? '' : Number(row[5]),
+    carbs: row[6] === '' || row[6] == null ? '' : Number(row[6]),
+    fat: row[7] === '' || row[7] == null ? '' : Number(row[7])
+  };
+}
+
 function normalizeMeal(row) {
   const pickup = parseGoogleDate(row[0]);
   const pickupDate = pickup ? dateKey(pickup) : String(row[0] || '').slice(0,10);
@@ -203,6 +217,18 @@ function normalizeMeal(row) {
   return { id, name, desc, price, image, available, sort, pickupDate };
 }
 
+async function loadMacrosFromGoogleSheet() {
+  const response = await fetch(MACROS_URL, {cache:'no-store'});
+  if (!response.ok) throw new Error('Macros sheet request failed: ' + response.status);
+
+  const text = await response.text();
+  const jsonText = text.replace(/^\/\*O_o\*\/\s*/, '').replace(/^google\.visualization\.Query\.setResponse\(/, '').replace(/\);\s*$/, '');
+  const data = JSON.parse(jsonText);
+  const rows = (data.table && data.table.rows) || [];
+  const values = rows.map(r => (r.c || []).map(c => c ? c.v : ''));
+  return new Map(values.map(normalizeMacro).filter(Boolean).map(m => [m.mealId, m]));
+}
+
 async function loadMenuFromGoogleSheet() {
   try {
     const response = await fetch(MENU_URL, {cache:'no-store'});
@@ -214,10 +240,12 @@ async function loadMenuFromGoogleSheet() {
 
     const rows = (data.table && data.table.rows) || [];
     const values = rows.map(r => (r.c || []).map(c => c ? c.v : ''));
+    const macroMap = await loadMacrosFromGoogleSheet();
 
     mealsCatalog = values
       .map(normalizeMeal)
       .filter(m => m.name && m.available)
+      .map(m => ({...m, macros: macroMap.get(m.id) || null}))
       .sort((a,b) => a.sort - b.sort);
 
     if (!mealsCatalog.length) {
@@ -362,6 +390,7 @@ function renderMeals() {
       <div class="meal-body">
         <div class="meal-top"><div class="meal-name">${m.name}</div><div class="price">$${m.price.toFixed(2).replace('.00','')}</div></div>
         <div class="desc">${m.desc}</div>
+        ${m.macros ? `<div class="macros">${m.macros.calories !== '' && Number.isFinite(m.macros.calories) ? `${Math.round(m.macros.calories)} cal` : ''}${m.macros.protein !== '' && Number.isFinite(m.macros.protein) ? ` • ${m.macros.protein}g protein` : ''}${m.macros.carbs !== '' && Number.isFinite(m.macros.carbs) ? ` • ${m.macros.carbs}g carbs` : ''}${m.macros.fat !== '' && Number.isFinite(m.macros.fat) ? ` • ${m.macros.fat}g fat` : ''}</div>` : ''}
         ${controls}
       </div>
     </div>`;
@@ -716,6 +745,6 @@ renderWeek();
 document.getElementById('menuStatus').textContent = 'Loading this week’s menu from Google Sheets…';
 loadMenuFromGoogleSheet();
 </script>
-<div style="text-align:center;color:#999;font-size:10px;margin:18px 0 8px">Peak Preps • v22</div>
+<div style="text-align:center;color:#999;font-size:10px;margin:18px 0 8px">Peak Preps • v23</div>
 </body>
 </html>
