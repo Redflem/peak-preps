@@ -183,13 +183,12 @@ function render() {
   } else {
     html += orders.map(order => {
       const fulfillment = order.fulfillment === 'delivery' ? 'Delivery' : 'Pickup';
-      const status = order.status ? `Status: ${escapeHtml(order.status)}` : '';
       const meals = order.items.map(item =>
         `<li><span>${escapeHtml(item.name)}</span><span class="meal-qty">× ${item.qty}</span></li>`
       ).join('');
       return `<div class="order-card">
         <div class="order-top">
-          <div><div class="customer">${escapeHtml(order.name)}</div><div class="status">${status}</div></div>
+          <div><div class="customer">${escapeHtml(order.name)}</div></div>
           <div class="fulfillment">${fulfillment}</div>
         </div>
         <ul class="meal-list">${meals}</ul>
