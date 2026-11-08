@@ -18,7 +18,7 @@
   <h2>Quick Actions</h2>
   <div class="grid"><a class="btn" href="manual-order.html">＋ Add Manual Order</a><a class="btn alt" href="analytics.html">View Company Data</a><a class="btn alt" href="orders.html">View Customer Orders</a><a class="btn alt" href="index.html">Open Customer Ordering</a></div>
 </section>
-<footer>Peak Preps • Staff Dashboard</footer></div>
+<footer>Peak Preps • Staff Dashboard • v26</footer></div>
 <script>
 const API='https://script.google.com/macros/s/AKfycbwxkdoFkkVlg7XDMrfXRTJLM9mNrB0_cHWF9KjYSrqiX6ZP9ncgyU4mAb2tUeOJrSen/exec';function staffKey(){let k='';try{k=localStorage.getItem('ppStaffKey')||''}catch(e){}if(!k){k=(prompt('Enter the Peak Preps staff key:')||'').trim();if(k)try{localStorage.setItem('ppStaffKey',k)}catch(e){}}return k}function forgetKey(){try{localStorage.removeItem('ppStaffKey')}catch(e){}}const KEY=encodeURIComponent(staffKey());
 const ORDERS_URL=`${API}?sheet=ORDERS&key=${KEY}`;
