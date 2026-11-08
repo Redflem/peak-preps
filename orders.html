@@ -66,9 +66,9 @@
 </div>
 
 <script>
-const SHEET_ID = '1YsiaXXp-aFLQHMPY3aPi_tuiX9fRMymnVcnt1ouEcg4';
-const ORDERS_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=ORDERS&range=A2:S1000`;
-const ITEMS_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=ORDER%20ITEMS&range=A2:I2000`;
+const API = 'https://script.google.com/macros/s/AKfycbwxkdoFkkVlg7XDMrfXRTJLM9mNrB0_cHWF9KjYSrqiX6ZP9ncgyU4mAb2tUeOJrSen/exec'; // Apps Script: the spreadsheet itself is private
+const ORDERS_URL = `${API}?sheet=ORDERS`;
+const ITEMS_URL = `${API}?sheet=ORDER%20ITEMS`;
 
 let allOrders = [];
 let selectedWeek = 0;

@@ -175,9 +175,9 @@
 <script>
 
 let mealsCatalog = [];
-const SHEET_ID = '1YsiaXXp-aFLQHMPY3aPi_tuiX9fRMymnVcnt1ouEcg4';
-const MENU_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=MENU&range=A3:I1000`;
-const MACROS_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=MACROS&range=A2:H1000`;
+const API = 'https://script.google.com/macros/s/AKfycbwxkdoFkkVlg7XDMrfXRTJLM9mNrB0_cHWF9KjYSrqiX6ZP9ncgyU4mAb2tUeOJrSen/exec'; // Apps Script: the spreadsheet itself is private
+const MENU_URL = `${API}?sheet=MENU`;
+const MACROS_URL = `${API}?sheet=MACROS`;
 const ORDER_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxDwe7TFxXvliocM9a0gVsHJ0I98P2687l_6M1-qSINrqo9Jr2l8cuTMyR7WHP89Xjm/exec';
 
 
