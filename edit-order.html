@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peak Preps — Edit Order</title>
+<style>
+:root{--olive:#68734a;--dark:#222;--light:#f5f5f2;--card:#fff;--line:#ddd;--muted:#666;--green:#536638;--red:#b3261e}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--light);color:var(--dark)}
+.wrap{max-width:700px;margin:auto;padding:16px}
+header{background:#fff;border-radius:18px;box-shadow:0 2px 12px #00000012;margin-bottom:16px;padding:18px;text-align:center}
+.logo{width:120px;height:auto}
+h1{margin:4px 0;font-size:24px}
+h2{margin:0 0 4px;font-size:20px}
+.sub{color:var(--muted);margin:4px 0 0;font-size:14px}
+section{background:var(--card);border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 2px 12px #0000000c}
+.btn{display:inline-block;background:var(--olive);color:#fff;text-decoration:none;border:0;border-radius:10px;padding:12px 16px;font:inherit;font-weight:800;cursor:pointer}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.alt{background:#eef0e8;color:#4d5837}
+.btn.danger{background:#fff;color:var(--red);border:2px solid var(--red)}
+.pick{display:block;width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:12px;padding:12px 14px;margin:8px 0;font:inherit;cursor:pointer}
+.pick b{display:block}
+.pick span{color:var(--muted);font-size:13px}
+.meal{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #eee}
+.meal:last-child{border-bottom:0}
+.meal .name{flex:1;min-width:0}
+.meal .name b{display:block;font-size:15px}
+.meal .name span{color:var(--muted);font-size:13px}
+.meal.changed .name b{color:var(--green)}
+.step{display:flex;align-items:center;gap:6px}
+.step button{width:40px;height:40px;border-radius:10px;border:1px solid #d4d6ce;background:#f7f7f4;font-size:22px;font-weight:800;cursor:pointer;color:#333}
+.step .q{width:34px;text-align:center;font-size:18px;font-weight:900}
+.totals{display:flex;justify-content:space-between;font-size:15px;margin:6px 0}
+.totals.big{font-size:20px;font-weight:900}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.actions .btn{flex:1}
+.msg{border-radius:12px;padding:12px 14px;margin-bottom:14px;font-weight:700}
+.msg.ok{background:#e8f1e0;color:#2f4a1a}
+.msg.err{background:#fbe9e7;color:var(--red)}
+.note{background:#eef4fb;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:14px}
+.hidden{display:none}
+footer{text-align:center;color:#999;font-size:10px;margin:18px 0 8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img class="logo" src="peak-preps-logo-384.png" alt="Peak Preps">
+    <h1>Edit Order</h1>
+    <p class="sub">Change meal quantities or delete an order.</p>
+  </header>
+
+  <div id="msg" class="msg hidden"></div>
+
+  <section id="chooser" class="hidden">
+    <h2>Choose an order</h2>
+    <div id="orderList"><p class="sub">Loading…</p></div>
+  </section>
+
+  <section id="editor" class="hidden">
+    <h2 id="custName"></h2>
+    <p class="sub" id="orderInfo"></p>
+    <div id="custNote" class="note hidden"></div>
+    <div id="meals" style="margin-top:8px"></div>
+  </section>
+
+  <section id="summary" class="hidden">
+    <div class="totals"><span>Meals</span><span id="tMeals">0</span></div>
+    <div class="totals"><span>Subtotal</span><span id="tSub">$0.00</span></div>
+    <div class="totals"><span>Every 5th meal half off</span><span id="tDisc">−$0.00</span></div>
+    <div class="totals" id="feeRow"><span>Delivery fee</span><span id="tFee">$0.00</span></div>
+    <div class="totals big"><span>Total</span><span id="tTotal">$0.00</span></div>
+    <div class="actions">
+      <button class="btn" id="saveBtn" disabled>Save changes</button>
+      <button class="btn alt" id="otherBtn">Other orders</button>
+    </div>
+    <div class="actions">
+      <button class="btn danger" id="deleteBtn">Delete order</button>
+    </div>
+  </section>
+
+  <footer>Peak Preps • Edit Order • v28</footer>
+</div>
+
+<script>
+const API='https://script.google.com/macros/s/AKfycbwxkdoFkkVlg7XDMrfXRTJLM9mNrB0_cHWF9KjYSrqiX6ZP9ncgyU4mAb2tUeOJrSen/exec';
+function staffKey(){let k='';try{k=localStorage.getItem('ppStaffKey')||''}catch(e){}if(!k){k=(prompt('Enter the Peak Preps staff key:')||'').trim();if(k)try{localStorage.setItem('ppStaffKey',k)}catch(e){}}return k}
+function forgetKey(){try{localStorage.removeItem('ppStaffKey')}catch(e){}}
+const $=id=>document.getElementById(id);
+const money=n=>'$'+(Number(n)||0).toFixed(2);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let current=null, rows=[];   // rows: {mealId, meal, price, qty, original}
+
+function show(id,on){$(id).classList.toggle('hidden',!on)}
+function message(text,kind){const m=$('msg');m.textContent=text;m.className='msg '+(kind||'ok');show('msg',!!text)}
+
+async function getJSON(params){
+  const key=staffKey(); if(!key) throw Error('The staff key is needed to edit orders.');
+  const r=await fetch(API+'?'+new URLSearchParams({...params,key}),{cache:'no-store'});
+  const j=await r.json();
+  if(j.success===false){ if(/key/i.test(j.error||'')) forgetKey(); throw Error(j.error||'Request failed'); }
+  return j;
+}
+async function postJSON(params){
+  const key=staffKey(); if(!key) throw Error('The staff key is needed to edit orders.');
+  const r=await fetch(API,{method:'POST',body:new URLSearchParams({...params,key})});
+  const j=await r.json();
+  if(j.success===false){ if(/key/i.test(j.error||'')) forgetKey(); throw Error(j.error||'Request failed'); }
+  return j;
+}
+
+/* ---------- choose an order ---------- */
+async function loadChooser(){
+  show('editor',false);show('summary',false);show('chooser',true);
+  $('orderList').innerHTML='<p class="sub">Loading…</p>';
+  try{
+    const weeks=await Promise.all([getJSON({action:'week',week:0}),getJSON({action:'week',week:1})]);
+    let html='';
+    weeks.forEach(w=>{
+      html+=`<h3 style="margin:14px 0 4px">Pickup ${esc(w.pickupLabel)}</h3>`;
+      if(!w.orders.length) html+='<p class="sub">No orders.</p>';
+      w.orders.forEach(o=>{html+=`<button class="pick" data-id="${esc(o.id)}"><b>${esc(o.name)}</b><span>${o.mealCount} meal${o.mealCount==1?'':'s'} · ${esc(o.fulfillment)} · ${money(o.total)}</span></button>`});
+    });
+    $('orderList').innerHTML=html;
+    document.querySelectorAll('.pick').forEach(b=>b.onclick=()=>{history.replaceState(null,'','?id='+encodeURIComponent(b.dataset.id));loadOrder(b.dataset.id)});
+  }catch(e){$('orderList').innerHTML='';message(e.message,'err')}
+}
+
+/* ---------- edit one order ---------- */
+async function loadOrder(id){
+  show('chooser',false);message('');
+  try{
+    const d=await getJSON({action:'order',id});
+    current=d.order;
+    const qty={},price={};
+    current.items.forEach(it=>{qty[it.mealId]=(qty[it.mealId]||0)+it.qty;price[it.mealId]=it.unitPrice});
+    rows=d.menu.filter(m=>m.available||qty[m.mealId]).map(m=>({mealId:m.mealId,meal:m.meal,price:price[m.mealId]??m.price,qty:qty[m.mealId]||0}));
+    current.items.forEach(it=>{if(!rows.find(r=>r.mealId===it.mealId))rows.push({mealId:it.mealId,meal:it.meal,price:it.unitPrice,qty:qty[it.mealId]})});
+    rows.forEach(r=>r.original=r.qty);
+    $('custName').textContent=current.name;
+    $('orderInfo').textContent=`Pickup ${current.pickupLabel} · ${current.fulfillment}`+(current.status==='Cancelled'?' · DELETED':'');
+    $('custNote').textContent=current.notes?'📝 '+current.notes:'';show('custNote',!!current.notes);
+    renderRows();show('editor',true);show('summary',current.status!=='Cancelled');
+    if(current.status==='Cancelled') message('This order was deleted. To restore it, set its Status back to New in the spreadsheet.','err');
+  }catch(e){message(e.message,'err');show('editor',false);show('summary',false)}
+}
+
+function renderRows(){
+  $('meals').innerHTML=rows.map((r,i)=>`<div class="meal${r.qty!==r.original?' changed':''}">
+    <div class="name"><b>${esc(r.meal)}</b><span>${money(r.price)} each${r.original&&r.qty!==r.original?` · was ${r.original}`:''}</span></div>
+    <div class="step"><button data-i="${i}" data-d="-1" aria-label="Less ${esc(r.meal)}">−</button><span class="q">${r.qty}</span><button data-i="${i}" data-d="1" aria-label="More ${esc(r.meal)}">+</button></div></div>`).join('');
+  document.querySelectorAll('.step button').forEach(b=>b.onclick=()=>{const r=rows[b.dataset.i];r.qty=Math.max(0,Math.min(50,r.qty+Number(b.dataset.d)));renderRows()});
+  // Same rules as Apps Script: every 5th meal half off, in list order; delivery fee unchanged.
+  let n=0,sub=0,disc=0;
+  rows.forEach(r=>{for(let q=0;q<r.qty;q++){n++;sub+=r.price;if(n%5===0)disc+=r.price*.5}});
+  const fee=current.fulfillment.toLowerCase()==='delivery'?5:0;
+  $('tMeals').textContent=n;$('tSub').textContent=money(sub);$('tDisc').textContent='−'+money(disc);
+  $('tFee').textContent=money(fee);show('feeRow',fee>0);$('tTotal').textContent=money(sub-disc+fee);
+  $('saveBtn').disabled=!rows.some(r=>r.qty!==r.original)||n===0;
+}
+
+$('saveBtn').onclick=async()=>{
+  const items=rows.filter(r=>r.qty>0);
+  if(!items.length){message('An order needs at least one meal. To remove it, use Delete order.','err');return}
+  const params={action:'updateOrder',id:current.id,itemCount:items.length};
+  items.forEach((r,i)=>{params[`item_${i}_mealId`]=r.mealId;params[`item_${i}_mealName`]=r.meal;params[`item_${i}_quantity`]=r.qty});
+  $('saveBtn').disabled=true;$('saveBtn').textContent='Saving…';
+  try{const res=await postJSON(params);await loadOrder(current.id);message(`Saved ✓  ${res.mealCount} meals · new total ${money(res.total)}`)}
+  catch(e){message('Could not confirm the save ('+e.message+'). Reloading the order to check…','err');setTimeout(()=>loadOrder(current.id),1500)}
+  finally{$('saveBtn').textContent='Save changes'}
+};
+
+$('deleteBtn').onclick=async()=>{
+  if(!confirm(`Delete ${current.name}'s order for ${current.pickupLabel}?\n\nIt will disappear from the dashboard and production totals.`))return;
+  $('deleteBtn').disabled=true;
+  try{await postJSON({action:'deleteOrder',id:current.id});message(`${current.name}'s order was deleted.`);history.replaceState(null,'',location.pathname);await loadChooser()}
+  catch(e){message('Could not delete: '+e.message,'err')}
+  finally{$('deleteBtn').disabled=false}
+};
+$('otherBtn').onclick=()=>{history.replaceState(null,'',location.pathname);message('');loadChooser()};
+
+const startId=new URLSearchParams(location.search).get('id');
+startId?loadOrder(startId):loadChooser();
+</script>
+</body>
+</html>

@@ -8,7 +8,7 @@
 <section><h2>Meal Performance</h2><div class="notice">Performance is based on completed/active orders in the spreadsheet. Cancelled orders are excluded.</div><div id="mealPerf" class="loading">Loading…</div></section>
 <section><h2>Weekly Output</h2><div id="weekly" class="loading">Loading…</div></section>
 <section><h2>Order Mix</h2><div id="mix" class="loading">Loading…</div></section>
-<footer>Peak Preps • Company Data • v27</footer></div>
+<footer>Peak Preps • Company Data • v28</footer></div>
 <script>
 const API='https://script.google.com/macros/s/AKfycbwxkdoFkkVlg7XDMrfXRTJLM9mNrB0_cHWF9KjYSrqiX6ZP9ncgyU4mAb2tUeOJrSen/exec';function staffKey(){let k='';try{k=localStorage.getItem('ppStaffKey')||''}catch(e){}if(!k){k=(prompt('Enter the Peak Preps staff key:')||'').trim();if(k)try{localStorage.setItem('ppStaffKey',k)}catch(e){}}return k}function forgetKey(){try{localStorage.removeItem('ppStaffKey')}catch(e){}}const KEY=encodeURIComponent(staffKey());
 const ORDERS_URL=`${API}?sheet=ORDERS&key=${KEY}`;
