@@ -80,12 +80,12 @@ footer{text-align:center;color:#999;font-size:10px;margin:18px 0 8px}
     </div>
   </section>
 
-  <footer>Peak Preps • Edit Order • v28</footer>
+  <footer>Peak Preps • Edit Order • v29</footer>
 </div>
 
 <script>
 const API='https://script.google.com/macros/s/AKfycbwxkdoFkkVlg7XDMrfXRTJLM9mNrB0_cHWF9KjYSrqiX6ZP9ncgyU4mAb2tUeOJrSen/exec';
-function staffKey(){let k='';try{k=localStorage.getItem('ppStaffKey')||''}catch(e){}if(!k){k=(prompt('Enter the Peak Preps staff key:')||'').trim();if(k)try{localStorage.setItem('ppStaffKey',k)}catch(e){}}return k}
+function staffKey(){let k='';try{k=localStorage.getItem('ppStaffKey')||''}catch(e){}if(!k){k=(prompt('Enter the Peak Preps staff password:')||'').trim();if(k)try{localStorage.setItem('ppStaffKey',k)}catch(e){}}return k}
 function forgetKey(){try{localStorage.removeItem('ppStaffKey')}catch(e){}}
 const $=id=>document.getElementById(id);
 const money=n=>'$'+(Number(n)||0).toFixed(2);
@@ -96,14 +96,14 @@ function show(id,on){$(id).classList.toggle('hidden',!on)}
 function message(text,kind){const m=$('msg');m.textContent=text;m.className='msg '+(kind||'ok');show('msg',!!text)}
 
 async function getJSON(params){
-  const key=staffKey(); if(!key) throw Error('The staff key is needed to edit orders.');
+  const key=staffKey(); if(!key) throw Error('The staff password is needed to edit orders.');
   const r=await fetch(API+'?'+new URLSearchParams({...params,key}),{cache:'no-store'});
   const j=await r.json();
   if(j.success===false){ if(/key/i.test(j.error||'')) forgetKey(); throw Error(j.error||'Request failed'); }
   return j;
 }
 async function postJSON(params){
-  const key=staffKey(); if(!key) throw Error('The staff key is needed to edit orders.');
+  const key=staffKey(); if(!key) throw Error('The staff password is needed to edit orders.');
   const r=await fetch(API,{method:'POST',body:new URLSearchParams({...params,key})});
   const j=await r.json();
   if(j.success===false){ if(/key/i.test(j.error||'')) forgetKey(); throw Error(j.error||'Request failed'); }
